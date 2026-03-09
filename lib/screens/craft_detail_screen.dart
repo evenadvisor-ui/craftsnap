@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/storage_service.dart';
 import 'reference_image_screen.dart';
+import 'share_to_feed_button.dart'; // ← ADDED
 
 class CraftDetailScreen extends StatefulWidget {
   final CraftIdea craft;
-  const CraftDetailScreen({super.key, required this.craft});
+  final String detectedLabel; // e.g. "plastic-bottle", "cardboard"
+  const CraftDetailScreen({
+    super.key,
+    required this.craft,
+    this.detectedLabel = '',
+  });
 
   @override
   State<CraftDetailScreen> createState() => _CraftDetailScreenState();
@@ -220,6 +226,16 @@ class _CraftDetailScreenState extends State<CraftDetailScreen> {
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 12), // ← ADDED (gap between buttons)
+                  // ── Share to Feed ──────────────────────────────────────── ADDED
+                  ShareToFeedButton(
+                    craftName: craft.title,
+                    objectDetected: widget.detectedLabel,
+                    description: craft.description,
+                  ),
+
+                  // ──────────────────────────────────────────────────────────────
                   const SizedBox(height: 24),
                 ],
               ),

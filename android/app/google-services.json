@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "784152037359",
+    "project_id": "craftsnap-62ac4",
+    "storage_bucket": "craftsnap-62ac4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:784152037359:android:780a3d015d0d822800981a",
+        "android_client_info": {
+          "package_name": "com.example.craftsnap"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCg15mocAaZVhTWgYPF2TtgISGfeVrhGvY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/craft_service.dart';
+import '../services/offline_craft_service.dart';
 import 'craft_detail_screen.dart';
 
 class CraftIdeasScreen extends StatefulWidget {
@@ -25,6 +26,7 @@ class _CraftIdeasScreenState extends State<CraftIdeasScreen> {
   List<CraftIdea> _ideas = [];
   bool _loading = true;
   String? _error;
+  bool _isOffline = false; // true when showing offline results
 
   @override
   void initState() {
@@ -36,7 +38,10 @@ class _CraftIdeasScreenState extends State<CraftIdeasScreen> {
     setState(() {
       _loading = true;
       _error = null;
+      _isOffline = false;
     });
+
+    // ── Try online first ─────────────────────────────────────────────────────
     try {
       final ideas = await CraftService.instance.getCraftIdeas(
         currentObjects: widget.currentObjects,
@@ -44,17 +49,60 @@ class _CraftIdeasScreenState extends State<CraftIdeasScreen> {
         futureObjects: widget.futureObjects,
         mode: widget.mode,
       );
-      setState(() {
-        _ideas = ideas;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _ideas = ideas;
+          _loading = false;
+        });
+      }
+      return;
+    } catch (_) {
+      // Online failed — fall through to offline
+    }
+
+    // ── Offline fallback ─────────────────────────────────────────────────────
+    try {
+      final allObjects = [
+        ...widget.currentObjects,
+        ...widget.pastObjects,
+        ...widget.futureObjects,
+      ];
+
+      List<CraftIdea> offlineIdeas;
+
+      if (allObjects.length == 1) {
+        offlineIdeas = await OfflineCraftService.instance.getCraftsForObject(
+          allObjects.first,
+          count: 6,
+        );
+      } else {
+        offlineIdeas = await OfflineCraftService.instance.getCraftsForObjects(
+          allObjects,
+          count: 6,
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _ideas = offlineIdeas;
+          _loading = false;
+          _isOffline = true;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Could not load ideas. Please try again.';
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Could not load ideas. Please try again.';
+          _loading = false;
+        });
+      }
     }
   }
+
+  /// The primary detected object label — passed into CraftDetailScreen
+  /// so the Share button knows what recyclable was scanned.
+  String get _primaryLabel =>
+      widget.currentObjects.isNotEmpty ? widget.currentObjects.first : '';
 
   @override
   Widget build(BuildContext context) {
@@ -73,8 +121,8 @@ class _CraftIdeasScreenState extends State<CraftIdeasScreen> {
       ),
       body: Column(
         children: [
-          // Object combo banner
           _buildBanner(),
+          if (_isOffline) _buildOfflineBadge(),
           Expanded(child: _buildBody()),
         ],
       ),
@@ -102,6 +150,42 @@ class _CraftIdeasScreenState extends State<CraftIdeasScreen> {
         style: const TextStyle(fontSize: 12, color: Colors.black54),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  Widget _buildOfflineBadge() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Colors.orange.shade50,
+      child: Row(
+        children: [
+          Icon(Icons.wifi_off, size: 15, color: Colors.orange.shade700),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'You\'re offline — showing saved craft ideas',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.orange.shade800,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: _loadIdeas,
+            child: Text(
+              'Retry',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.orange.shade800,
+                fontWeight: FontWeight.bold,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -152,7 +236,10 @@ class _CraftIdeasScreenState extends State<CraftIdeasScreen> {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => CraftDetailScreen(craft: _ideas[i]),
+            builder: (_) => CraftDetailScreen(
+              craft: _ideas[i],
+              detectedLabel: _primaryLabel, // ← FIXED: passes detected object
+            ),
           ),
         ),
       ),
@@ -242,13 +329,17 @@ class _IdeaCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      '${idea.steps.length} steps',
-                      style: const TextStyle(
-                        color: Colors.green,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          '${idea.steps.length} steps',
+                          style: const TextStyle(
+                            color: Colors.green,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
